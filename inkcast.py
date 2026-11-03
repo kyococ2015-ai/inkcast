@@ -30,6 +30,17 @@ from PySide6.QtGui import (QAction, QColor, QFont, QGuiApplication, QIcon, QImag
 from PySide6.QtWidgets import QApplication, QLabel, QMenu, QSystemTrayIcon, QVBoxLayout, QWidget
 
 APP = "InkCast"
+
+
+def resource_dir():
+    """Folder containing files shipped next to the executable.
+    A standalone build keeps the camera helper writable beside InkCast.exe.
+    """
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(os.path.abspath(sys.executable))
+    return os.path.dirname(os.path.abspath(__file__))
+
+
 PORT = int(os.environ.get("INKCAST_PORT", "8765"))
 REF = 1920.0                      # sizes are defined relative to a 1920px-wide screen
 STROKES = {"pen", "marker", "hl", "neon", "laser", "farrow"}
@@ -1028,7 +1039,7 @@ def main():
         toggle.setText(("Hide ink" if overlay.isVisible() else "Show ink") + "\tCtrl+Alt+H")
 
     toggle.triggered.connect(toggle_ink)
-    cam_bat = os.path.join(os.path.dirname(os.path.abspath(__file__)), "camera", "InkCast Camera.bat")
+    cam_bat = os.path.join(resource_dir(), "camera", "InkCast Camera.bat")
     camera = QAction("Phone camera (USB)...")
 
     def start_camera():
