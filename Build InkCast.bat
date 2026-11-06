@@ -120,8 +120,11 @@ if errorlevel 1 exit /b 1
 echo   Zipping portable\InkCast-Portable.zip ...
 if exist "portable\InkCast-Portable.zip" del "portable\InkCast-Portable.zip"
 powershell -NoProfile -Command "Compress-Archive -Path 'portable\InkCast' -DestinationPath 'portable\InkCast-Portable.zip' -Force"
-if errorlevel 1 echo   Zip failed - the portable folder is still ready at portable\InkCast\
-goto :eof
+if errorlevel 1 (
+  echo   Zip failed - the portable folder is still ready at portable\InkCast\
+  exit /b 1
+)
+exit /b 0
 
 
 rem ============================================================
