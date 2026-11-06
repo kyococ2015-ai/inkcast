@@ -3,7 +3,7 @@ setlocal
 title InkCast Builder
 cd /d "%~dp0"
 
-rem Optional arguments: setup or portable
+rem Optional arguments: setup, portable, or both
 set "CHOICE="
 set "INTERACTIVE=1"
 if not "%~1"=="" set "INTERACTIVE=0"
@@ -13,23 +13,48 @@ if /i "%~1"=="installer" set "CHOICE=1"
 if /i "%~1"=="2" set "CHOICE=2"
 if /i "%~1"=="portable" set "CHOICE=2"
 if /i "%~1"=="zip" set "CHOICE=2"
+if /i "%~1"=="3" set "CHOICE=3"
+if /i "%~1"=="both" set "CHOICE=3"
+if /i "%~1"=="all" set "CHOICE=3"
 
-if not defined CHOICE if "%INTERACTIVE%"=="1" (
+if defined CHOICE goto :got_choice
+if not "%INTERACTIVE%"=="1" goto :no_choice
+
+echo.
+echo   ============================================
+echo     InkCast build - what do you want to make?
+echo   ============================================
+echo.
+echo     1 = Setup installer   -^>  dist\InkCastSetup.exe
+echo     2 = Portable version  -^>  dist\InkCast-Portable.zip
+echo     3 = Both              -^>  dist\InkCastSetup.exe + InkCast-Portable.zip
+echo.
+choice /c 123 /n /m "  Choose 1, 2 or 3: "
+set "CHOICE=%errorlevel%"
+goto :got_choice
+
+:no_choice
+echo   Unknown build option: %~1
+echo   Use: setup, portable, or both
+goto fail
+
+:got_choice
+
+rem ---------- close running InkCast (it locks dist\InkCast.exe) ----------
+tasklist /fi "imagename eq InkCast.exe" 2>nul | find /i "InkCast.exe" >nul
+if not errorlevel 1 (
   echo.
-  echo   ============================================
-  echo     InkCast build - what do you want to make?
-  echo   ============================================
+  echo   InkCast is currently running.
+  echo   It must be closed before building so PyInstaller can overwrite dist\InkCast.exe.
   echo.
-  echo     1 = Setup installer   -^>  installer\InkCastSetup.exe
-  echo     2 = Portable version  -^>  portable\InkCast-Portable.zip
-  echo.
-  choice /c 12 /n /m "  Choose 1 or 2: "
-  set "CHOICE=%errorlevel%"
-)
-if not defined CHOICE (
-  echo   Unknown build option: %~1
-  echo   Use: setup or portable
-  goto fail
+  choice /c YN /n /m "  Close InkCast now? (Y/N) "
+  if errorlevel 2 (
+    echo   Build cancelled.
+    goto fail
+  )
+  echo   Closing InkCast...
+  taskkill /im InkCast.exe /f >nul 2>nul
+  timeout /t 2 /nobreak >nul
 )
 
 rem ---------- check python ----------
@@ -66,14 +91,21 @@ if errorlevel 1 (
 
 if "%CHOICE%"=="1" call :do_setup
 if "%CHOICE%"=="2" call :do_portable
+if "%CHOICE%"=="3" (
+  call :do_setup
+  if errorlevel 1 goto fail
+  call :do_portable
+)
 
 if errorlevel 1 goto fail
 
 echo.
 echo   ============================================
 echo     Done.
-if "%CHOICE%"=="1" echo       Setup:    installer\InkCastSetup.exe
-if "%CHOICE%"=="2" echo       Portable: portable\InkCast-Portable.zip
+if "%CHOICE%"=="1" echo       Setup:    dist\InkCastSetup.exe
+if "%CHOICE%"=="2" echo       Portable: dist\InkCast-Portable.zip
+if "%CHOICE%"=="3" echo       Setup:    dist\InkCastSetup.exe
+if "%CHOICE%"=="3" echo       Portable: dist\InkCast-Portable.zip
 echo   ============================================
 echo.
 pause
@@ -107,23 +139,24 @@ rem ============================================================
 :do_portable
 echo.
 echo   Assembling portable package...
-if exist "portable\InkCast" rmdir /s /q "portable\InkCast"
-if not exist "portable" mkdir "portable"
-mkdir "portable\InkCast"
-mkdir "portable\InkCast\camera"
-copy /y "dist\InkCast.exe" "portable\InkCast\InkCast.exe" >nul
-if exist "camera\InkCast Camera.bat" copy /y "camera\InkCast Camera.bat" "portable\InkCast\camera\InkCast Camera.bat" >nul
+if exist "dist\InkCast-staging" rmdir /s /q "dist\InkCast-staging"
+mkdir "dist\InkCast-staging"
+mkdir "dist\InkCast-staging\InkCast"
+mkdir "dist\InkCast-staging\InkCast\camera"
+copy /y "dist\InkCast.exe" "dist\InkCast-staging\InkCast\InkCast.exe" >nul
+if exist "camera\InkCast Camera.bat" copy /y "camera\InkCast Camera.bat" "dist\InkCast-staging\InkCast\camera\InkCast Camera.bat" >nul
 if errorlevel 1 exit /b 1
-if exist "camera\get-scrcpy.ps1" copy /y "camera\get-scrcpy.ps1" "portable\InkCast\camera\get-scrcpy.ps1" >nul
+if exist "camera\get-scrcpy.ps1" copy /y "camera\get-scrcpy.ps1" "dist\InkCast-staging\InkCast\camera\get-scrcpy.ps1" >nul
 if errorlevel 1 exit /b 1
 
-echo   Zipping portable\InkCast-Portable.zip ...
-if exist "portable\InkCast-Portable.zip" del "portable\InkCast-Portable.zip"
-powershell -NoProfile -Command "Compress-Archive -Path 'portable\InkCast' -DestinationPath 'portable\InkCast-Portable.zip' -Force"
+echo   Zipping dist\InkCast-Portable.zip ...
+if exist "dist\InkCast-Portable.zip" del "dist\InkCast-Portable.zip"
+powershell -NoProfile -Command "Compress-Archive -Path 'dist\InkCast-staging\InkCast' -DestinationPath 'dist\InkCast-Portable.zip' -Force"
 if errorlevel 1 (
-  echo   Zip failed - the portable folder is still ready at portable\InkCast\
+  echo   Zip failed.
   exit /b 1
 )
+rmdir /s /q "dist\InkCast-staging"
 exit /b 0
 
 

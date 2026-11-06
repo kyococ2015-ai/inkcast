@@ -26,7 +26,7 @@ DefaultDirName={localappdata}\Programs\{#AppName}
 DefaultGroupName={#AppName}
 PrivilegesRequired=lowest
 ; Where the built setup.exe lands
-OutputDir=installer
+OutputDir=dist
 OutputBaseFilename=InkCastSetup
 Compression=lzma2/ultra64
 SolidCompression=yes
